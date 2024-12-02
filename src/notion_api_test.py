@@ -122,7 +122,7 @@ class BookMarkExtractor:
 
         while has_more:
             cursor = ret.get("next_cursor")
-            cursor_ls.append(cursor)
+            cursor_ls.append((cursor, number_of_items))
             ret = self.notion.databases.query(database_id=database_id, start_cursor=ret.get("next_cursor"))
             has_more = ret.get("has_more")
             number_of_items += len(ret.get("results"))
@@ -151,11 +151,30 @@ class BookMarkExtractor:
             cursor_ls = self.note_cursors
             database_id = self.note_database_id
 
-        items = self.notion.databases.query(database_id=database_id).get("results")
-        return items[idx-1].get("id")
+        start_cursor, idx_in_current_list = self.convert_idx(item_type,idx)
+
+        items = self.notion.databases.query(database_id=database_id, start_cursor=start_cursor).get("results")
+        return items[idx_in_current_list-1].get("id")
     
     def convert_idx(self,item_type,idx):
-        pass
+        """
+        Convert the index of the item to the index of the item in the whole list.\n
+        params:
+            item_type: the type of the item (BOOKMARK or NOTE)
+            idx: the index of the item in the whole list
+        return:
+            start_cursor, idx_in_current_list 
+        """
+        if item_type == self.BOOKMARK:
+            cursor_ls = self.bookmark_cursors
+        elif item_type == self.NOTE:
+            cursor_ls = self.note_cursors
+
+        for i in range(len(cursor_ls)):
+            if idx < cursor_ls[i][1]:
+                return cursor_ls[i-1][0], idx-cursor_ls[i-1][1]
+
+        return cursor_ls[i][0], idx-cursor_ls[i][1]
 
     def get_random_item(self,item_type,n):
         """
@@ -167,6 +186,7 @@ class BookMarkExtractor:
             a list of dictionaries containing the info of the random items
         """
         random_idx = random.sample(range(self.get_number_of_items(item_type)-1),n)
+        print("Random index:", random_idx)
         item_ls = list()
         for idx in random_idx:
             if item_type == self.BOOKMARK:
@@ -179,4 +199,4 @@ if __name__ == '__main__':
 
     token = "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"
     bm_extractor = BookMarkExtractor(token)
-    print(bm_extractor.get_random_item(bm_extractor.BOOKMARK,5))
+    print(bm_extractor.get_random_item(bm_extractor.NOTE,5))
